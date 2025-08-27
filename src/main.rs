@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 use bevy_rand::prelude::*;
-
-use crate::map::MapPlugin;
-
-mod map;
+use bevy_roguelike::*;
 
 fn main() {
     App::new()
@@ -24,12 +21,6 @@ fn main() {
                 }),
         )
         .add_plugins(EntropyPlugin::<WyRand>::default())
-        .add_plugins(MapPlugin::default())
-        .add_systems(PreStartup, setup_camera)
+        .add_plugins(GamePlugin)
         .run();
-}
-
-fn setup_camera(mut commands: Commands) {
-    bevy::log::info!("Initializing Game");
-    commands.spawn(Camera2d);
 }

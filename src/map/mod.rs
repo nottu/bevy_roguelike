@@ -3,7 +3,7 @@ use bevy_ecs_tilemap::prelude::*;
 use bevy_rand::prelude::*;
 use rand::Rng;
 
-use crate::map::tiles::TileType;
+use crate::{SharedAtlasHandles, map::tiles::TileType};
 
 mod tiles;
 
@@ -22,7 +22,7 @@ impl MapPlugin {
 impl Default for MapPlugin {
     /// Default size is 80x80
     fn default() -> Self {
-        Self::new(80, 80)
+        Self::new(20, 20)
     }
 }
 
@@ -31,9 +31,11 @@ impl Plugin for MapPlugin {
         let (x, y) = (self.x, self.y);
         app.add_plugins(TilemapPlugin).add_systems(
             Startup,
-            move |cmd: Commands, res: Res<AssetServer>, rng: GlobalEntropy<WyRand>| {
+            move |cmd: Commands,
+                  shared_atlas: Res<SharedAtlasHandles>,
+                  rng: GlobalEntropy<WyRand>| {
                 bevy::log::info!("Spawning TileMap");
-                load_map(x, y, cmd, res, rng);
+                load_map(x, y, cmd, shared_atlas, rng);
             },
         );
     }
@@ -43,10 +45,10 @@ fn load_map(
     x: u32,
     y: u32,
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    shared_atlas: Res<SharedAtlasHandles>,
     mut rng: GlobalEntropy<WyRand>,
 ) {
-    let texture_handle: Handle<Image> = asset_server.load("dungeon/tiles.png");
+    let texture_handle: Handle<Image> = shared_atlas.texture.clone_weak();
 
     let map_size = TilemapSize { x, y };
 
@@ -94,7 +96,7 @@ fn load_map(
         tile_storage.set(&tile_pos, tile_entity);
     }
 
-    let mut wall_cnt = 400;
+    let mut wall_cnt = 4;
     for x in 1..(map_size.x - 1) {
         for y in 1..(map_size.y - 1) {
             let rand_val = rng.random_range(0..map_size.x * map_size.y);
