@@ -1,6 +1,7 @@
 use bevy::{log, prelude::*};
 use bevy_asset_loader::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
+use bevy_enhanced_input::EnhancedInputPlugin;
 
 use crate::map::MapPlugin;
 use crate::player::*;
@@ -26,7 +27,8 @@ pub(crate) struct DungeonAssets {
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(MapPlugin::default())
+        app.add_plugins(EnhancedInputPlugin)
+            .add_plugins(MapPlugin::default())
             .add_plugins(PlayerPlugin)
             .init_state::<GameState>()
             .add_loading_state(
