@@ -36,7 +36,6 @@ fn setup(mut commands: Commands, shared_atlas: Res<DungeonAssets>) {
             (
                 Action::<Move>::new(),
                 DeadZone::default(),
-                SmoothNudge::default(),
                 Bindings::spawn((
                     Cardinal::wasd_keys(),
                     Axial::left_stick(),
@@ -53,13 +52,22 @@ pub struct Player;
 #[action_output(Vec2)]
 struct Move;
 
-fn apply_movement(trigger: Trigger<Fired<Move>>, mut player: Query<&mut TilePos, With<Player>>) {
+fn apply_movement(trigger: Trigger<Started<Move>>, mut player: Query<&mut TilePos, With<Player>>) {
     log::debug_once!("MOVE!");
     let mut player_pos = player.single_mut().expect("Expected One Player");
     let movement = trigger.value;
+    // TODO: there must be a better way
     if movement.x.abs() > movement.y.abs() {
-        player_pos.x += 1;
+        player_pos.x = if movement.x < 0.0 {
+            player_pos.x.saturating_sub(1)
+        } else {
+            player_pos.x.saturating_add(1)
+        };
     } else {
-        player_pos.y += 1;
+        player_pos.y = if movement.y < 0.0 {
+            player_pos.y.saturating_sub(1)
+        } else {
+            player_pos.y.saturating_add(1)
+        };
     };
 }
