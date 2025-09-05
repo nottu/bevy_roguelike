@@ -1,9 +1,9 @@
-use bevy::prelude::*;
+use bevy::{log, prelude::*};
 use bevy_ecs_tilemap::prelude::*;
 use bevy_rand::prelude::*;
 use rand::Rng;
 
-use crate::{SharedAtlasHandles, map::tiles::TileType};
+use crate::{DungeonAssets, GameState, map::tiles::TileType};
 
 mod tiles;
 
@@ -30,10 +30,8 @@ impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         let (x, y) = (self.x, self.y);
         app.add_plugins(TilemapPlugin).add_systems(
-            Startup,
-            move |cmd: Commands,
-                  shared_atlas: Res<SharedAtlasHandles>,
-                  rng: GlobalEntropy<WyRand>| {
+            OnEnter(GameState::InDungeon),
+            move |cmd: Commands, shared_atlas: Res<DungeonAssets>, rng: GlobalEntropy<WyRand>| {
                 bevy::log::info!("Spawning TileMap");
                 load_map(x, y, cmd, shared_atlas, rng);
             },
@@ -45,10 +43,10 @@ fn load_map(
     x: u32,
     y: u32,
     mut commands: Commands,
-    shared_atlas: Res<SharedAtlasHandles>,
+    shared_atlas: Res<DungeonAssets>,
     mut rng: GlobalEntropy<WyRand>,
 ) {
-    let texture_handle: Handle<Image> = shared_atlas.texture.clone_weak();
+    let texture_handle: Handle<Image> = shared_atlas.sprite.clone_weak();
 
     let map_size = TilemapSize { x, y };
 
@@ -114,6 +112,7 @@ fn load_map(
         }
     }
 
+    // TODO: can we get this info from the shared_atlas.layout?
     let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
     let grid_size = tile_size.into();
     let map_type = TilemapType::default();
@@ -128,4 +127,5 @@ fn load_map(
         anchor: TilemapAnchor::Center,
         ..Default::default()
     });
+    log::info!("Loaded Map Tiles");
 }

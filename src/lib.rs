@@ -1,4 +1,5 @@
-use bevy::prelude::*;
+use bevy::{log, prelude::*};
+use bevy_asset_loader::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
 use crate::map::MapPlugin;
@@ -8,26 +9,40 @@ mod map;
 mod player;
 pub struct GamePlugin;
 
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, States)]
+enum GameState {
+    #[default]
+    AssetLoading,
+    InDungeon,
+}
+
+#[derive(AssetCollection, Resource)]
+pub(crate) struct DungeonAssets {
+    #[asset(texture_atlas_layout(tile_size_x = 16, tile_size_y = 16, columns = 12, rows = 11))]
+    layout: Handle<TextureAtlasLayout>,
+    #[asset(path = "dungeon/tiles.png")]
+    sprite: Handle<Image>,
+}
+
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(MapPlugin::default())
             .add_plugins(PlayerPlugin)
+            .init_state::<GameState>()
+            .add_loading_state(
+                LoadingState::new(GameState::AssetLoading)
+                    .continue_to_state(GameState::InDungeon)
+                    .load_collection::<DungeonAssets>(),
+            )
             .add_systems(PreStartup, init_game)
-            .add_systems(Update, apply_grid_move);
+            .add_systems(
+                Update,
+                apply_grid_move.run_if(in_state(GameState::InDungeon)),
+            );
     }
 }
 
-#[derive(Resource)]
-pub struct SharedAtlasHandles {
-    pub texture: Handle<Image>,
-    pub layout: Handle<TextureAtlasLayout>,
-}
-
-pub fn init_game(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut layouts: ResMut<Assets<TextureAtlasLayout>>,
-) {
+pub fn init_game(mut commands: Commands) {
     bevy::log::info!("Initializing Game");
     commands.spawn((
         Camera2d,
@@ -36,18 +51,6 @@ pub fn init_game(
             ..OrthographicProjection::default_2d()
         }),
     ));
-
-    let texture: Handle<Image> = asset_server.load("dungeon/tiles.png");
-
-    // Create a TextureAtlasLayout from the tilesheet grid
-    let layout = TextureAtlasLayout::from_grid(UVec2::splat(16), 12, 11, None, None);
-    let layout_handle = layouts.add(layout);
-
-    // Insert our handles resource
-    commands.insert_resource(SharedAtlasHandles {
-        texture,
-        layout: layout_handle,
-    });
 }
 
 pub fn apply_grid_move(
@@ -61,8 +64,16 @@ pub fn apply_grid_move(
     )>,
     mut query: Query<(&TilePos, &mut Transform), Without<TilemapType>>,
 ) {
-    let (map_transform, grid_size, map_type, map_size, tile_size, anchor) =
-        tilemap_query.single().expect("expected single tilemap");
+    log::info_once!("Applying Grid Move");
+    let Ok((map_transform, grid_size, map_type, map_size, tile_size, anchor)) =
+        tilemap_query.single()
+    else {
+        log::warn_once!(
+            "tilemap_query is_empty, err:{:?}",
+            tilemap_query.single().unwrap_err()
+        );
+        return;
+    };
     for (tile_pos, mut player_transform) in &mut query {
         let tile_center =
             tile_pos.center_in_world(map_size, grid_size, tile_size, map_type, anchor);

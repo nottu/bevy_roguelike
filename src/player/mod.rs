@@ -1,17 +1,17 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::tiles::TilePos;
 
-use crate::SharedAtlasHandles;
+use crate::{DungeonAssets, GameState};
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup);
+        app.add_systems(OnEnter(GameState::InDungeon), setup);
     }
 }
 
-fn setup(mut commands: Commands, shared_atlas: Res<SharedAtlasHandles>) {
+fn setup(mut commands: Commands, shared_atlas: Res<DungeonAssets>) {
     let player_sprite_idx = 7 * 12;
     let atlas = TextureAtlas {
         layout: shared_atlas.layout.clone_weak(),
@@ -20,7 +20,7 @@ fn setup(mut commands: Commands, shared_atlas: Res<SharedAtlasHandles>) {
     commands.spawn((
         Player,
         Sprite {
-            image: shared_atlas.texture.clone_weak(),
+            image: shared_atlas.sprite.clone_weak(),
             texture_atlas: Some(atlas),
             ..Default::default()
         },
