@@ -3,9 +3,9 @@ use bevy_ecs_tilemap::prelude::*;
 use bevy_rand::prelude::*;
 use rand::Rng;
 
-use crate::{DungeonAssets, GameState, map::tiles::TileType};
+use crate::{Collider, DungeonAssets, GameState, map::tiles::TileType};
 
-mod tiles;
+pub mod tiles;
 
 #[derive(Debug)]
 pub struct MapPlugin {
@@ -108,6 +108,12 @@ fn load_map(
             let tile_entity = commands
                 .spawn(tile_type.get_bundle(tile_pos, tilemap_entity))
                 .id();
+            match tile_type {
+                TileType::Floor => (),
+                TileType::Wall => {
+                    commands.entity(tile_entity).insert(Collider);
+                }
+            }
             tile_storage.set(&tile_pos, tile_entity);
         }
     }

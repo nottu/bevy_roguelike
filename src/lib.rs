@@ -1,7 +1,6 @@
 use bevy::{log, prelude::*};
 use bevy_asset_loader::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
-use bevy_enhanced_input::EnhancedInputPlugin;
 
 use crate::map::MapPlugin;
 use crate::player::*;
@@ -27,8 +26,7 @@ pub(crate) struct DungeonAssets {
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(EnhancedInputPlugin)
-            .add_plugins(MapPlugin::default())
+        app.add_plugins(MapPlugin::default())
             .add_plugins(PlayerPlugin)
             .init_state::<GameState>()
             .add_loading_state(
@@ -39,10 +37,18 @@ impl Plugin for GamePlugin {
             .add_systems(PreStartup, init_game)
             .add_systems(
                 Update,
-                apply_grid_move.run_if(in_state(GameState::InDungeon)),
+                (apply_grid_move, apply_move)
+                    .chain()
+                    .run_if(in_state(GameState::InDungeon)),
             );
     }
 }
+
+#[derive(Debug, Component)]
+struct Collider;
+
+#[derive(Debug, Component)]
+struct WantsToMove(IVec2);
 
 pub fn init_game(mut commands: Commands) {
     bevy::log::info!("Initializing Game");
@@ -55,7 +61,32 @@ pub fn init_game(mut commands: Commands) {
     ));
 }
 
-pub fn apply_grid_move(
+fn apply_grid_move(
+    mut commands: Commands,
+    move_query: Query<(Entity, &WantsToMove, &mut TilePos)>,
+) {
+    // TODO: check for walls
+    // add global timer?
+    for (entity, move_diff, mut tile_pos) in move_query {
+        commands.entity(entity).remove::<WantsToMove>();
+
+        let diff_x = move_diff.0.x.abs() as u32;
+        tile_pos.x = if move_diff.0.x < 0 {
+            tile_pos.x.saturating_sub(diff_x)
+        } else {
+            tile_pos.x + diff_x
+        };
+
+        let diff_y = move_diff.0.y.abs() as u32;
+        tile_pos.y = if move_diff.0.y < 0 {
+            tile_pos.y.saturating_sub(diff_y)
+        } else {
+            tile_pos.y + diff_y
+        }
+    }
+}
+
+fn apply_move(
     tilemap_query: Query<(
         &Transform,
         &TilemapGridSize,

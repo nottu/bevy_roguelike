@@ -1,22 +1,37 @@
 use bevy::{log, prelude::*};
 use bevy_ecs_tilemap::tiles::TilePos;
-use bevy_enhanced_input::prelude::*;
+use leafwing_input_manager::prelude::*;
 
-use crate::{DungeonAssets, GameState};
+use crate::{Collider, DungeonAssets, GameState, WantsToMove};
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_input_context::<Player>()
-            .add_systems(OnEnter(GameState::InDungeon), setup)
-            .add_observer(
-                apply_movement, //.run_if(in_state(GameState::InDungeon)),
-            );
+        app.add_plugins(InputManagerPlugin::<Action>::default())
+            .add_systems(OnEnter(GameState::InDungeon), spawn_player)
+            .add_systems(Update, move_player.run_if(in_state(GameState::InDungeon)));
     }
 }
 
-fn setup(mut commands: Commands, shared_atlas: Res<DungeonAssets>) {
+#[derive(Debug, Component)]
+pub struct Player;
+
+#[derive(Debug, Actionlike, Reflect, Clone, Copy, Hash, PartialEq, Eq)]
+enum Action {
+    #[actionlike(DualAxis)]
+    Move,
+}
+
+impl Action {
+    fn default_input_map() -> InputMap<Self> {
+        InputMap::default()
+            .with_dual_axis(Action::Move, GamepadStick::LEFT)
+            .with_dual_axis(Action::Move, VirtualDPad::wasd())
+    }
+}
+
+fn spawn_player(mut commands: Commands, shared_atlas: Res<DungeonAssets>) {
     let player_sprite_idx = 7 * 12;
     let atlas = TextureAtlas {
         layout: shared_atlas.layout.clone_weak(),
@@ -32,42 +47,17 @@ fn setup(mut commands: Commands, shared_atlas: Res<DungeonAssets>) {
         },
         Transform::from_xyz(0.0, 0.0, 1.0),
         TilePos { x: 10, y: 10 },
-        actions! {Player[
-            (
-                Action::<Move>::new(),
-                DeadZone::default(),
-                Bindings::spawn((
-                    Cardinal::wasd_keys(),
-                    Axial::left_stick(),
-                )),
-            )
-        ]},
+        Collider,
+        Action::default_input_map(),
     ));
 }
 
-#[derive(Debug, Component)]
-pub struct Player;
+fn move_player(mut commands: Commands, query: Query<(Entity, &ActionState<Action>), With<Player>>) {
+    let (entity, action_state) = query.single().expect("Player actions not found");
 
-#[derive(Debug, InputAction)]
-#[action_output(Vec2)]
-struct Move;
+    let move_direction = action_state.axis_pair(&Action::Move).as_ivec2();
 
-fn apply_movement(trigger: Trigger<Started<Move>>, mut player: Query<&mut TilePos, With<Player>>) {
-    log::debug_once!("MOVE!");
-    let mut player_pos = player.single_mut().expect("Expected One Player");
-    let movement = trigger.value;
-    // TODO: there must be a better way
-    if movement.x.abs() > movement.y.abs() {
-        player_pos.x = if movement.x < 0.0 {
-            player_pos.x.saturating_sub(1)
-        } else {
-            player_pos.x.saturating_add(1)
-        };
-    } else {
-        player_pos.y = if movement.y < 0.0 {
-            player_pos.y.saturating_sub(1)
-        } else {
-            player_pos.y.saturating_add(1)
-        };
-    };
+    if move_direction != IVec2::ZERO {
+        commands.entity(entity).insert(WantsToMove(move_direction));
+    }
 }

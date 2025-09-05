@@ -19,6 +19,7 @@ impl TileType {
             },
         )
     }
+
     fn texture_index(&self) -> u32 {
         match self {
             Self::Floor => 4 * 12,
