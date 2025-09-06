@@ -2,7 +2,7 @@ use bevy::{log, prelude::*};
 use bevy_ecs_tilemap::tiles::TilePos;
 use leafwing_input_manager::prelude::*;
 
-use crate::{Collider, DungeonAssets, GameState, WantsToMove};
+use crate::{Collider, DungeonAssets, GameState, GameTick, WantsToMove};
 
 pub struct PlayerPlugin;
 
@@ -52,8 +52,22 @@ fn spawn_player(mut commands: Commands, shared_atlas: Res<DungeonAssets>) {
     ));
 }
 
-fn move_player(mut commands: Commands, query: Query<(Entity, &ActionState<Action>), With<Player>>) {
-    let (entity, action_state) = query.single().expect("Player actions not found");
+fn move_player(
+    mut commands: Commands,
+    player_action_query: Query<(Entity, &ActionState<Action>), With<Player>>,
+    mut game_tick_query: Query<&mut GameTick>,
+    time: Res<Time>,
+) {
+    let (entity, action_state) = player_action_query
+        .single()
+        .expect("Player actions not found");
+
+    let mut game_tick = game_tick_query.single_mut().expect("expected one timer");
+    game_tick.timer.tick(time.delta());
+    // no timer tick, nothing to do
+    if !game_tick.timer.finished() {
+        return;
+    }
 
     let move_direction = action_state.axis_pair(&Action::Move).as_ivec2();
 

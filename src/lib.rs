@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{log, prelude::*};
 use bevy_asset_loader::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
@@ -50,6 +52,11 @@ struct Collider;
 #[derive(Debug, Component)]
 struct WantsToMove(IVec2);
 
+#[derive(Debug, Component)]
+pub struct GameTick {
+    timer: Timer,
+}
+
 pub fn init_game(mut commands: Commands) {
     bevy::log::info!("Initializing Game");
     commands.spawn((
@@ -59,6 +66,10 @@ pub fn init_game(mut commands: Commands) {
             ..OrthographicProjection::default_2d()
         }),
     ));
+
+    commands.spawn(GameTick {
+        timer: Timer::new(Duration::from_millis(250), TimerMode::Repeating),
+    });
 }
 
 fn apply_grid_move(
