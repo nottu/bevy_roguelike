@@ -2,7 +2,7 @@ use bevy::{log, prelude::*};
 use bevy_ecs_tilemap::tiles::TilePos;
 use leafwing_input_manager::prelude::*;
 
-use crate::{Collider, DungeonAssets, GameState, GameTick, WantsToMove};
+use crate::{Collider, DungeonAssets, GameState, WantsToMove};
 
 pub struct PlayerPlugin;
 
@@ -16,21 +16,6 @@ impl Plugin for PlayerPlugin {
 
 #[derive(Debug, Component)]
 pub struct Player;
-
-#[derive(Debug, Actionlike, Reflect, Clone, Copy, Hash, PartialEq, Eq)]
-enum Action {
-    #[actionlike(DualAxis)]
-    Move,
-}
-
-impl Action {
-    fn default_input_map() -> InputMap<Self> {
-        InputMap::default()
-            .with_dual_axis(Action::Move, GamepadStick::LEFT)
-            .with_dual_axis(Action::Move, VirtualDPad::wasd())
-    }
-}
-
 fn spawn_player(mut commands: Commands, shared_atlas: Res<DungeonAssets>) {
     let player_sprite_idx = 7 * 12;
     let atlas = TextureAtlas {
@@ -52,24 +37,42 @@ fn spawn_player(mut commands: Commands, shared_atlas: Res<DungeonAssets>) {
     ));
 }
 
+#[derive(Debug, Actionlike, Reflect, Clone, Copy, Hash, PartialEq, Eq)]
+enum Action {
+    MoveUp,
+    MoveDown,
+    MoveLeft,
+    MoveRight,
+}
+
+impl Action {
+    fn default_input_map() -> InputMap<Self> {
+        InputMap::default()
+            .with(Action::MoveUp, KeyCode::KeyW)
+            .with(Action::MoveDown, KeyCode::KeyS)
+            .with(Action::MoveLeft, KeyCode::KeyA)
+            .with(Action::MoveRight, KeyCode::KeyD)
+    }
+}
+
 fn move_player(
     mut commands: Commands,
     player_action_query: Query<(Entity, &ActionState<Action>), With<Player>>,
-    mut game_tick_query: Query<&mut GameTick>,
-    time: Res<Time>,
 ) {
     let (entity, action_state) = player_action_query
         .single()
         .expect("Player actions not found");
 
-    let mut game_tick = game_tick_query.single_mut().expect("expected one timer");
-    game_tick.timer.tick(time.delta());
-    // no timer tick, nothing to do
-    if !game_tick.timer.finished() {
-        return;
+    let mut move_direction = IVec2::ZERO;
+    if action_state.just_pressed(&Action::MoveUp) {
+        move_direction.y += 1;
+    } else if action_state.just_pressed(&Action::MoveDown) {
+        move_direction.y -= 1;
+    } else if action_state.just_pressed(&Action::MoveLeft) {
+        move_direction.x -= 1;
+    } else if action_state.just_pressed(&Action::MoveRight) {
+        move_direction.x += 1;
     }
-
-    let move_direction = action_state.axis_pair(&Action::Move).as_ivec2();
 
     if move_direction != IVec2::ZERO {
         commands.entity(entity).insert(WantsToMove(move_direction));

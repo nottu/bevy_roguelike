@@ -52,11 +52,6 @@ struct Collider;
 #[derive(Debug, Component)]
 struct WantsToMove(IVec2);
 
-#[derive(Debug, Component)]
-pub struct GameTick {
-    timer: Timer,
-}
-
 pub fn init_game(mut commands: Commands) {
     bevy::log::info!("Initializing Game");
     commands.spawn((
@@ -66,10 +61,6 @@ pub fn init_game(mut commands: Commands) {
             ..OrthographicProjection::default_2d()
         }),
     ));
-
-    commands.spawn(GameTick {
-        timer: Timer::new(Duration::from_millis(250), TimerMode::Repeating),
-    });
 }
 
 fn apply_grid_move(
@@ -77,7 +68,6 @@ fn apply_grid_move(
     move_query: Query<(Entity, &WantsToMove, &mut TilePos)>,
 ) {
     // TODO: check for walls
-    // add global timer?
     for (entity, move_diff, mut tile_pos) in move_query {
         commands.entity(entity).remove::<WantsToMove>();
 
